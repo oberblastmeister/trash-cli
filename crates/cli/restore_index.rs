@@ -23,22 +23,26 @@ impl FromStr for RestoreIndex {
         let start = split.next().expect("BUG: must have at least one");
         let start = start
             .parse::<usize>()
-            .wrap_err(format!(
-                "Failed to parse `{}` before - into a number",
-                start
-            ))?
-            .checked_sub(1)
+            .wrap_err_with(|| format!("Failed to parse `{}` before - into a number", start))?
+            .checked_sub(1) // convert to 0 based index
             .ok_or_else(|| eyre!("Index must be 1 or greater"))?;
 
         let end = match split.next() {
             Some(end) => end
                 .parse::<usize>()
-                .wrap_err(format!("Failed to parse `{}` after - into a number", end))?,
+                .wrap_err_with(|| format!("Failed to parse `{}` after - into a number", end))?,
             None => {
                 return Ok(RestoreIndex::Point(start));
             }
         };
 
+        if start > end {
+            bail!(
+                "The range is not well formed, {} is greater than {}",
+                start,
+                end
+            );
+        }
         Ok(RestoreIndex::Range(start..end))
     }
 }
@@ -119,8 +123,19 @@ mod tests {
 
     #[test]
     fn subtract_overflow() {
-        let s = "0";
-        let _ = s.parse::<RestoreIndex>();
+        let _ = "0".parse::<RestoreIndex>();
+    }
+
+    #[test]
+    #[should_panic]
+    fn subtract_overflow_error() {
+        let _ = "0".parse::<RestoreIndex>().unwrap();
+    }
+
+    prop_compose! {
+        fn well_formed_range_points(start: usize)(x in start.., y in start..) -> (usize, usize) {
+            (cmp::min(x, y), cmp::max(x, y))
+        }
     }
 
     proptest! {
@@ -132,7 +147,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn parses_index_correctly_range(x in 1usize.., y in 1usize..) {
+        fn parses_index_correctly_range((x, y) in well_formed_range_points(1)) {
             let s = format!("{}-{}", x, y);
             let parsed_range = match s.parse::<RestoreIndex>().unwrap() {
                 RestoreIndex::Range(parsed_range) => parsed_range,
@@ -189,6 +204,17 @@ mod tests {
 
             prop_assert_eq!(restore_range1.is_overlapping(&restore_range2), r1.is_overlapping(&r2));
             prop_assert_eq!(restore_range2.is_overlapping(&restore_range1), r1.is_overlapping(&r2));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn not_well_formed_ranges(x in any::<usize>(), y in any::<usize>()) {
+            let s = format!("{}-{}", cmp::max(x, y), cmp::min(x, y));
+            let res = s.parse::<RestoreIndex>();
+            if res.is_ok() {
+                panic!("Should be error");
+            }
         }
     }
 

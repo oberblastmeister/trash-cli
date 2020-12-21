@@ -4,5 +4,5 @@
 #
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
-cc 5c6b0a8b1c7eeb67e20cbdf8d70eb620907bfa07fcedc8dcd40238c1349db2de # shrinks to s = "0"
-cc 91e3b97636c494ba9bcb907f543a12067bc0017ff9ac8d75f4f36b7ce6dad983 # shrinks to x = 15949251657715461466, y = 1
+cc ffd6ad0cfeb9b2b4655ee513d13615168dfbfce376d800bc539e8f2067b7f29c # shrinks to s1 = "", s2 = ""
+cc 8dc1c5748bb49c40c16fd84e4d87e17b7aab29d7d250149704f310e65b641276 # shrinks to s1 = " ", s2 = "A"

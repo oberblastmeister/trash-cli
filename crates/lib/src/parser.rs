@@ -28,13 +28,19 @@ pub enum Error {
 #[derive(Debug, Snafu, PartialEq)]
 pub enum ParseError {
     Tag { tag: String },
+    TagEmpty,
     Char { c: String },
     Eof,
 }
 
+/// Will panic if the tag is empty
 fn tag(tag: &str) -> impl Fn(&str) -> ParseResult<&str, &str> + '_ {
     move |i| {
-        if i.starts_with(tag) {
+        if i.is_empty() {
+            Ok(("", ""))
+        } else if tag.is_empty() {
+            Ok((i, ""))
+        } else if i.starts_with(tag) {
             let idx = tag.len();
             Ok((&i[idx..], &i[..idx]))
         } else {
@@ -142,7 +148,56 @@ pub fn parse_trash_info(s: &str) -> Result<TrashInfo> {
 mod tests {
     use super::*;
     use eyre::Result;
+    use proptest::prelude::*;
     use std::str::FromStr;
+
+    proptest! {
+        #[test]
+        fn doesnt_crash(s in "\\PC*") {
+            let _ = s.parse::<TrashInfo>();
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn tag_same(s in "\\PC*") {
+            assert_eq!(tag(&s)(&s), Ok(("", s.as_str())));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn not_at_start(s1 in "\\PC*", s2 in "\\PC*") {
+            prop_assume!(!s1.is_empty() && !s2.is_empty());
+
+            let compound = format!("{}{}", s1, s2);
+            prop_assert_eq!(tag(&s2)(&compound), Tag { tag: s2 }.fail());
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn at_start(s1 in "\\PC*", s2 in "\\PC*") {
+            prop_assume!(!s1.is_empty() && !s2.is_empty());
+
+            let compound = format!("{}{}", s1, s2);
+            prop_assert_eq!(tag(&s1)(&compound), Ok((s2.as_str(), s1.as_str())));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn empty_tag(s in "\\PC*") {
+            assert_eq!(tag("")(&s), Ok((s.as_str(), "")));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn empty_input(t in "\\PC*") {
+            assert_eq!(tag(&t)(""), Ok(("", "")));
+        }
+    }
 
     /// Only returns chrono result because if parsing with nom has failed this will return an error
     /// message and panic instead of returning a result.
