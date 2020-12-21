@@ -110,6 +110,18 @@ impl Overlap for RestoreIndex {
 mod tests {
     use super::*;
     use RestoreIndex::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn doesnt_crash(s in "\\PC*") {
+            let _ = s.parse::<RestoreIndex>();
+        }
+    }
+
+    // prop_compose! {
+    //     fn arb_restore_index_string(max_qu)
+    // }
 
     fn test_parse_restore_index(s: &str, actual: RestoreIndex) {
         assert_eq!(
