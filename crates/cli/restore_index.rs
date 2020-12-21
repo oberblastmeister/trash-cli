@@ -2,7 +2,7 @@ use std::ops::Range;
 use std::str::FromStr;
 use std::{cmp, vec};
 
-use eyre::{bail, Context, Result};
+use eyre::{bail, eyre, Context, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RestoreIndex {
@@ -21,10 +21,14 @@ impl FromStr for RestoreIndex {
         }
         let mut split = s.split('-');
         let start = split.next().expect("BUG: must have at least one");
-        let start = start.parse::<usize>().wrap_err(format!(
-            "Failed to parse `{}` before - into a number",
-            start
-        ))? - 1;
+        let start = start
+            .parse::<usize>()
+            .wrap_err(format!(
+                "Failed to parse `{}` before - into a number",
+                start
+            ))?
+            .checked_sub(1)
+            .ok_or_else(|| eyre!("Index must be 1 or greater"))?;
 
         let end = match split.next() {
             Some(end) => end
@@ -109,8 +113,15 @@ impl Overlap for RestoreIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use RestoreIndex::*;
     use proptest::prelude::*;
+    use std::ops::Range;
+    use RestoreIndex::*;
+
+    #[test]
+    fn subtract_overflow() {
+        let s = "0";
+        let _ = s.parse::<RestoreIndex>();
+    }
 
     proptest! {
         #[test]
@@ -119,9 +130,67 @@ mod tests {
         }
     }
 
-    // prop_compose! {
-    //     fn arb_restore_index_string(max_qu)
-    // }
+    proptest! {
+        #[test]
+        fn parses_index_correctly_range(x in 1usize.., y in 1usize..) {
+            let s = format!("{}-{}", x, y);
+            let parsed_range = match s.parse::<RestoreIndex>().unwrap() {
+                RestoreIndex::Range(parsed_range) => parsed_range,
+                _ => panic!("It was supposed to parse into a range"),
+            };
+            prop_assert_eq!(x - 1..y, parsed_range);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn parses_index_correctly_point(x in 1usize..) {
+            let s = x.to_string();
+            let parsed_point = match s.parse::<RestoreIndex>().unwrap() {
+                RestoreIndex::Point(point) => point,
+                _ => panic!("It was supposed to parse into a point"),
+            };
+            prop_assert_eq!(x - 1, parsed_point);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn overlapping_points_are_equal(x in any::<usize>(), y in any::<usize>()) {
+            let xp = RestoreIndex::Point(x);
+            let yp = RestoreIndex::Point(y);
+
+            prop_assert_eq!(xp.is_overlapping(&yp), x == y);
+        }
+    }
+
+    prop_compose! {
+        fn arb_range()(start in any::<usize>(), end in any::<usize>()) -> Range<usize> {
+            start..end
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn overlapping_range_and_point(p in any::<usize>(), range in arb_range()) {
+            let point = RestoreIndex::Point(p);
+            let restore_range = RestoreIndex::Range(range.clone());
+
+            prop_assert_eq!(restore_range.is_overlapping(&point), range.contains(&p));
+            prop_assert_eq!(point.is_overlapping(&restore_range), range.contains(&p));
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn two_overlapping_ranges(r1 in arb_range(), r2 in arb_range()) {
+            let restore_range1 = RestoreIndex::Range(r1.clone());
+            let restore_range2 = RestoreIndex::Range(r2.clone());
+
+            prop_assert_eq!(restore_range1.is_overlapping(&restore_range2), r1.is_overlapping(&r2));
+            prop_assert_eq!(restore_range2.is_overlapping(&restore_range1), r1.is_overlapping(&r2));
+        }
+    }
 
     fn test_parse_restore_index(s: &str, actual: RestoreIndex) {
         assert_eq!(
