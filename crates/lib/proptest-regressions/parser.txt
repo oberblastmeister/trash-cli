@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc ffd6ad0cfeb9b2b4655ee513d13615168dfbfce376d800bc539e8f2067b7f29c # shrinks to s1 = "", s2 = ""
 cc 8dc1c5748bb49c40c16fd84e4d87e17b7aab29d7d250149704f310e65b641276 # shrinks to s1 = " ", s2 = "A"
+cc 3dbc6ccd8f9a0958a6f4bb0d6ef6923239ddf1621e67548890aa36cc054b4426 # shrinks to s1 = "&", s2 = "&"

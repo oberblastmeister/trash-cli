@@ -7,10 +7,8 @@ use prettytable::{cell, row, Cell, Row, Table};
 use terminal_size::{terminal_size, Width};
 
 use crate::border::Border;
-use crate::utils::{
-    get_metadata, Pair,
-};
 use crate::utils::{date, path};
+use crate::utils::{get_metadata, Pair};
 
 pub struct SizedTable {
     opt: Opt,
