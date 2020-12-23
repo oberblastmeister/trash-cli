@@ -7,3 +7,7 @@
 cc ffd6ad0cfeb9b2b4655ee513d13615168dfbfce376d800bc539e8f2067b7f29c # shrinks to s1 = "", s2 = ""
 cc 8dc1c5748bb49c40c16fd84e4d87e17b7aab29d7d250149704f310e65b641276 # shrinks to s1 = " ", s2 = "A"
 cc 3dbc6ccd8f9a0958a6f4bb0d6ef6923239ddf1621e67548890aa36cc054b4426 # shrinks to s1 = "&", s2 = "&"
+cc 84ea414667e47947cf978e2bd2cd5b2e3a8b5fdea1b5f2f8b0fb06a8e8f3b57e # shrinks to s = "Ⱥ", c = 'Ⱥ'
+cc 2e245495489fa9b4070b410bf0a9b72ea957072b67f995697a7c1feb9d459fd6 # shrinks to y = 1, m = 6, d = 31, h = 1, min = 1, s = 1
+cc 5f3bae48fb0acad1864aeddf7b007a2f5e85a12805059582068db33dd04d8f95 # shrinks to s = "¥", c = '¥'
+cc 02dd015d6947d44988431922d5edb14115659e5c39604e798aad3fb6afe09eb3 # shrinks to path = " ", deletion_date = "\n"
