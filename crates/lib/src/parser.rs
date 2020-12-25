@@ -116,7 +116,7 @@ impl<'a, 'b> TryInto<TrashInfo> for TrashInfoStr<'a, 'b> {
     type Error = Error;
 
     fn try_into(self: TrashInfoStr<'a, 'b>) -> Result<TrashInfo> {
-        let percent_path = PercentPath::new(self.path);
+        let percent_path = PercentPath::new_unchecked(self.path);
         let deletion_date =
             NaiveDateTime::parse_from_str(&self.deletion_date, TRASH_DATETIME_FORMAT).context(
                 Chrono {
@@ -288,7 +288,7 @@ mod tests {
             let parsed_date = parse_trash_info_date(&date_string).unwrap();
 
             let trash_info: TrashInfo = trash_info_str.try_into().unwrap();
-            let expected = TrashInfo::new(PercentPath::new(&path), Some(parsed_date));
+            let expected = TrashInfo::new(PercentPath::new_unchecked(&path), Some(parsed_date));
 
             prop_assert_eq!(trash_info, expected);
         }

@@ -7,26 +7,32 @@ use crate::utils::{self, convert_to_str};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use snafu::{ResultExt, Snafu};
 
-/// The excluded characters that must be escaped with percents in the percent path of each trash
-/// info file.
-pub const ASCII_SET: &AsciiSet = &CONTROLS
-    // space
-    .add(b' ')
-    // delims
-    .add(b'<')
-    .add(b'>')
-    .add(b'#')
-    .add(b'%')
-    .add(b'"')
-    // unwise
-    .add(b'{')
-    .add(b'}')
-    .add(b'|')
-    .add(b'\\')
-    .add(b'^')
-    .add(b'[')
-    .add(b']')
-    .add(b'`');
+macro_rules! ascii_set {
+    ($($byte:expr),+) => {
+        const ASCII_SET_SLICE: &'static [u8] = &[$($byte),+];
+
+        pub const ASCII_SET: &AsciiSet = &CONTROLS$(
+            .add($byte)
+        )*;
+    };
+}
+
+ascii_set! {
+    b' ',
+    b'<',
+    b'>',
+    b'#',
+    b'%',
+    b'"',
+    b'{',
+    b'}',
+    b'|',
+    b'\\',
+    b'^',
+    b'[',
+    b']',
+    b'`'
+}
 
 #[derive(Debug, Snafu)]
 pub enum Error {
@@ -49,9 +55,10 @@ impl PercentPath {
         Self(utf8_percent_encode(s, ASCII_SET).to_string())
     }
 
-    /// Use only if the string is already percent encoded. Use inside of the parser because the
+    /// Use only if the string is already percent encoded because does not check if the string is
+    /// percent encoded. Use inside of the parser because the
     /// trash info file should have already encoded the path.
-    pub(crate) fn new(s: &str) -> Self {
+    pub(crate) fn new_unchecked(s: &str) -> Self {
         Self(s.to_string())
     }
 
@@ -81,21 +88,21 @@ impl fmt::Display for PercentPath {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
-    #[test]
-    fn encode_spaces_test() {
-        let percent_path = PercentPath::from_str("/this is a path/");
-        assert_eq!(
-            percent_path,
-            PercentPath(String::from("/this%20is%20a%20path/"))
-        );
+    fn contains_ascii_set(s: &str) -> bool {
+        ASCII_SET_SLICE
+            .iter()
+            // make sure that % is not there, it will be percent encoded
+            .filter(|b| **b as char != '%')
+            .any(|&b| s.contains(b as char))
     }
 
-    #[test]
-    fn decode_spaces_test() {
-        let s = "/this is a path/";
-        let percent_path = PercentPath::from_str("/this is a path/");
-        let percent_path = percent_path.decoded().unwrap();
-        assert_eq!(percent_path, s);
+    proptest! {
+        #[test]
+        fn test_precent_path(s in "\\PC*") {
+            let percent_path = PercentPath::from_str(&s);
+            prop_assert!(!contains_ascii_set(percent_path.encoded()));
+        }
     }
 }
