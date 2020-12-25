@@ -129,9 +129,8 @@ impl<'a, 'b> TryInto<TrashInfo> for TrashInfoStr<'a, 'b> {
 }
 
 pub fn parse_trash_info_date(s: &str) -> Result<NaiveDateTime> {
-    let date = NaiveDateTime::parse_from_str(s, TRASH_DATETIME_FORMAT).context(Chrono {
-        date: s,
-    })?;
+    let date =
+        NaiveDateTime::parse_from_str(s, TRASH_DATETIME_FORMAT).context(Chrono { date: s })?;
     Ok(date)
 }
 

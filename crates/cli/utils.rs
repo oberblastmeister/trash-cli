@@ -99,15 +99,46 @@ pub mod path {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use std::borrow::Cow;
+        use proptest::prelude::*;
+        use std::{borrow::Cow, path::PathBuf};
 
-        #[test]
-        fn shorten_path_test() {
-            assert_eq!(
-                path::shorten(&format!("{}/project/brian", HOME_DIR.to_str().unwrap())).unwrap(),
-                Cow::from("~/project/brian")
-            );
+        proptest! {
+            #[test]
+            fn shorten_path_doesnt_crash(s in "\\PC*") {
+                let _ = path::shorten(s);
+            }
         }
+
+        proptest! {
+            #[test]
+            fn shorten_only_first_home(times in 1..=5) {
+                let shortened = {
+                    let mut path = PathBuf::new();
+                    for i in 1..=times {
+                        let seg = *HOME_DIR;
+                        path.push(seg);
+                    }
+                    path::shorten(&path).unwrap()
+                };
+
+                let expected = {
+                    let mut path = PathBuf::from("~");
+                    for i in 1..=times - 1 {
+                        path.push(*HOME_DIR);
+                    }
+                    path
+                };
+                prop_assert_eq!(shortened, expected.into_os_string().into_string().unwrap());
+            }
+        }
+
+        // #[test]
+        // fn shorten_path_test() {
+        //     assert_eq!(
+        //         path::shorten(&format!("{}/project/brian", HOME_DIR.to_str().unwrap())).unwrap(),
+        //         Cow::from("~/project/brian")
+        //     );
+        // }
 
         #[test]
         fn short_path_not_beginning_test() {
