@@ -113,11 +113,11 @@ impl TrashInfo {
 
     /// Gets the deletions date as a string formated using the trash_info_format
     pub fn deletion_date_string_format(&self) -> String {
-        trash_info_format(self.deletion_date)
+        format(self.deletion_date)
     }
 }
 
-fn trash_info_format(date: NaiveDateTime) -> String {
+fn format(date: NaiveDateTime) -> String {
     format!("{}", date.format(TRASH_DATETIME_FORMAT))
 }
 
@@ -217,7 +217,7 @@ mod tests {
             .ymd(2014, 7, 8)
             .and_hms_milli(9, 10, 11, 12)
             .naive_local();
-        let s = trash_info_format(time);
+        let s = format(time);
         assert_eq!(s, "2014-07-08T09:10:11");
     }
 
@@ -234,7 +234,7 @@ mod tests {
             format!(
                 "[Trash Info]\nPath={}\nDeletionDate={}",
                 percent_path,
-                trash_info_format(time)
+                format(time)
             ),
         );
     }

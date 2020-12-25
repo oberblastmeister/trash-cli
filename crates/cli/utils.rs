@@ -115,7 +115,7 @@ pub mod path {
                 let shortened = {
                     let mut path = PathBuf::new();
                     for i in 1..=times {
-                        let seg = *HOME_DIR;
+                        let seg = &*HOME_DIR;
                         path.push(seg);
                     }
                     path::shorten(&path).unwrap()
@@ -124,10 +124,11 @@ pub mod path {
                 let expected = {
                     let mut path = PathBuf::from("~");
                     for i in 1..=times - 1 {
-                        path.push(*HOME_DIR);
+                        path.push(&*HOME_DIR);
                     }
                     path
                 };
+
                 prop_assert_eq!(shortened, expected.into_os_string().into_string().unwrap());
             }
         }

@@ -6,7 +6,6 @@ mod utils;
 
 use std::io;
 
-use directories::UserDirs;
 use fs_extra::dir;
 use fs_extra::file;
 use log::debug;
@@ -24,18 +23,32 @@ use std::path::{Path, PathBuf};
 
 use trash_entry::{read_dir_trash_entries, TrashEntry};
 
-static USER_DIRS: Lazy<UserDirs> =
-    Lazy::new(|| UserDirs::new().expect("Failed to determine user directories."));
-pub static HOME_DIR: Lazy<&Path> = Lazy::new(|| &USER_DIRS.home_dir());
-pub static TRASH_DIR: Lazy<PathBuf> = Lazy::new(|| HOME_DIR.join(".local/share/Trash"));
+macro_rules! dir_error {
+    ($dir:expr) => {
+        concat!("Fatal error, could not find ", $dir, " directory")
+    };
+}
+
+pub static HOME_DIR: Lazy<PathBuf> =
+    Lazy::new(|| dirs_next::home_dir().expect(dir_error!("home")));
+
+pub(crate) static DATA_DIR: Lazy<PathBuf> = 
+    Lazy::new(|| dirs_next::data_dir().expect(dir_error!("data")));
+
+pub static TRASH_DIR: Lazy<PathBuf> = Lazy::new(|| DATA_DIR.join("Trash"));
+
 pub static TRASH_INFO_DIR: Lazy<PathBuf> = Lazy::new(|| TRASH_DIR.join("info"));
+
 pub static TRASH_FILE_DIR: Lazy<PathBuf> = Lazy::new(|| TRASH_DIR.join("files"));
+
 pub const TRASH_INFO_EXT: &'_ str = "trashinfo";
+
 pub const FILE_COPY_OPT: file::CopyOptions = file::CopyOptions {
     overwrite: true,
     skip_exist: false,
     buffer_size: 64000,
 };
+
 pub const DIR_COPY_OPT: dir::CopyOptions = dir::CopyOptions {
     overwrite: true,
     skip_exist: false,
