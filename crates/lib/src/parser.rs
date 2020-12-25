@@ -128,6 +128,13 @@ impl<'a, 'b> TryInto<TrashInfo> for TrashInfoStr<'a, 'b> {
     }
 }
 
+pub fn parse_trash_info_date(s: &str) -> Result<NaiveDateTime> {
+    let date = NaiveDateTime::parse_from_str(s, TRASH_DATETIME_FORMAT).context(Chrono {
+        date: s,
+    })?;
+    Ok(date)
+}
+
 fn parse_trash_info_str(i: &str) -> Result<TrashInfoStr, ParseError> {
     let (i, _) = parse_header(i)?;
     let (i, _) = char('\n')(i)?;
@@ -227,29 +234,35 @@ mod tests {
         }
     }
 
+    #[allow(clippy::many_single_char_names)]
+    fn date_string_from_points(date_points: (u32, u32, u32, u32, u32, u32)) -> String {
+        format!(
+            "{:04}{:02}{:02}T{:02}:{:02}:{:02}",
+            date_points.0,
+            date_points.1,
+            date_points.2,
+            date_points.3,
+            date_points.4,
+            date_points.5
+        )
+    }
+
+    prop_compose! {
+        fn arb_date_string()(date_points in arb_date_points()) -> String {
+            date_string_from_points(date_points)
+        }
+    }
+
     proptest! {
         #[test]
-        fn parse_trash_info_date(date_points in arb_date_points()) {
+        fn parse_trash_info_date_test(date_points in arb_date_points()) {
             let (y, m, d, h, min, s) = date_points;
             let expected = NaiveDate::from_ymd_opt(y as i32, m, d).map(|d| d.and_hms(h, min, s)).expect("Should be valid date because came from arb_dates_function");
 
             let date_string = format!("{:04}{:02}{:02}T{:02}:{:02}:{:02}", y, m, d, h, min, s);
-            let parsed_date = NaiveDateTime::parse_from_str(&date_string, TRASH_DATETIME_FORMAT).unwrap();
+            let parsed_date = parse_trash_info_date(&date_string).unwrap();
             prop_assert_eq!(parsed_date, expected);
         }
-    }
-
-    #[test]
-    fn parse_trash_info_simple_test() {
-        let path = "¡";
-        let deletion_date = "¡";
-        let trash_info = format!("[Trash Info]\nPath={}\nDeletionDate={}", path, path);
-        let parsed = parse_trash_info_str(&trash_info).unwrap();
-        let expected = TrashInfoStr {
-            path: &path,
-            deletion_date: &deletion_date,
-        };
-        assert_eq!(parsed, expected);
     }
 
     const VALID_TRASH_INFO_VALUE_REGEX: &str = r"[^\[\]=\s]*";
@@ -264,136 +277,20 @@ mod tests {
         }
     }
 
-    // proptest! {
-    //     #[test]
-    //     fn char_not_at_start(s in "\\PC*", c in any::<char>()) {
-    //         prop_assume!(!s.is_empty() && !c.is_empty());
-    //     }
-    // }
+    proptest! {
+        #[test]
+        fn parse_trash_info_test(path in VALID_TRASH_INFO_VALUE_REGEX, date_string in arb_date_string()) {
+            let trash_info_str = TrashInfoStr {
+                path: &path,
+                deletion_date: &date_string
+            };
 
-    /// Only returns chrono result because if parsing with nom has failed this will return an error
-    /// message and panic instead of returning a result.
-    fn test_parse_trash_info<'a>(trash_info_str: &'a str, actual: (&str, &str)) -> Result<()> {
-        let expected = match TrashInfo::from_str(trash_info_str) {
-            Err(e) => {
-                eprintln!("{}", e);
-                panic!("An error occurred");
-            }
-            Ok(trash_info) => trash_info,
-        };
+            let parsed_date = parse_trash_info_date(&date_string).unwrap();
 
-        let actual = TrashInfo::new(
-            PercentPath::from_str(actual.0),
-            Some(NaiveDateTime::parse_from_str(
-                actual.1,
-                TRASH_DATETIME_FORMAT,
-            )?),
-        );
+            let trash_info: TrashInfo = trash_info_str.try_into().unwrap();
+            let expected = TrashInfo::new(PercentPath::new(&path), Some(parsed_date));
 
-        assert_eq!(expected, actual);
-
-        Ok(())
-    }
-
-    fn test_parse_trash_info_run(trash_info_str: &str, actual: (&str, &str)) {
-        match test_parse_trash_info(trash_info_str, actual) {
-            Ok(()) => (),
-            Err(e) => {
-                eprintln!("{}", e);
-                panic!("An error occurred when testing parse_trash_info");
-            }
+            prop_assert_eq!(trash_info, expected);
         }
-    }
-
-    #[test]
-    fn tag_test() -> Result<()> {
-        let s = "let a=1";
-        assert_eq!(tag("let")(s), Ok((" a=1", "let")));
-        Ok(())
-    }
-
-    #[test]
-    fn tag2_test() {
-        assert_eq!(tag("let")("leta=1"), Ok(("a=1", "let")));
-    }
-
-    #[test]
-    fn tag_none_test() {
-        assert_eq!(tag("let")("a=1"), Err(Tag { tag: "let" }.build()));
-    }
-
-    #[test]
-    fn tag_end_test() {
-        assert_eq!(tag("end")("thisistheend"), Err(Tag { tag: "end" }.build()));
-    }
-
-    #[test]
-    fn char_test() {
-        assert_eq!(char('=')("=hello"), Ok(("hello", '=')));
-    }
-
-    #[test]
-    fn char_none_test() {
-        assert_eq!(char('=')("a=b"), Err(Char { c: '=' }.build()));
-    }
-
-    #[test]
-    fn is_not_test() {
-        assert_eq!(is_not('=')("var=b"), Ok(("=b", "var")));
-    }
-
-    #[test]
-    fn is_not_all_test() {
-        assert_eq!(is_not('=')("variable"), Ok(("", "variable")));
-    }
-
-    // #[ignore]
-    // #[test]
-    // fn all_consuming_test() {
-    //     assert_eq!(all_consuming(tag("="))("=b"), Err(Eof.build()));
-    // }
-
-    // #[ignore]
-    // #[test]
-    // fn all_consuming2_test() {
-    //     assert_eq!(
-    //         all_consuming(is_not('\n'))("hello\nperson"),
-    //         Err(Eof.build())
-    //     );
-    // }
-
-    #[test]
-    fn parse_header_line_test() {
-        assert_eq!(parse_header("[Trash Info]"), Ok(("", "[Trash Info]")));
-    }
-
-    #[test]
-    fn tag_whitespace_test() {
-        assert_eq!(tag("Trash Info")("Trash Info "), Ok((" ", "Trash Info")));
-    }
-
-    #[test]
-    fn value_path_test() {
-        assert_eq!(
-            parse_path("Path=/home/brian/.config"),
-            Ok(("", "/home/brian/.config"))
-        );
-    }
-
-    #[test]
-    fn value_path_whitespace_test() {
-        assert_eq!(
-            parse_path("Path= /home/brian/.config"),
-            Ok(("", " /home/brian/.config"))
-        );
-    }
-
-    #[ignore]
-    #[test]
-    fn trash_info_parse_test() {
-        test_parse_trash_info_run(
-            "[Trash Info]\nPath=/home/brian/dude.txt\nDeletionDate=2020-08-28T16:16:55",
-            ("/home/brian/dude.txt", "2020-08-28T16:16:55"),
-        )
     }
 }
