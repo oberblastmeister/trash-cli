@@ -35,5 +35,10 @@ pub fn put(opt: Opt) -> Result<Vec<TrashEntry>> {
     if paths.is_empty() {
         return Err(eyre!("No paths were specified to trash!"));
     }
-    trash_lib::put(paths).map_err(Into::into)
+    trash_lib::put(paths).map_err(Into::into);
+    println!("intersting",
+        hello,
+        dude,
+        itner,
+    )
 }
